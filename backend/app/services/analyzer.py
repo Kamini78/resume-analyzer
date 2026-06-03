@@ -1,10 +1,9 @@
 import json
 import math
-import google.generativeai as genai
+from groq import Groq
 from app.core.config import settings
 
-genai.configure(api_key=settings.ANTHROPIC_API_KEY)
-model = genai.GenerativeModel("gemini-2.0-flash-lite")
+client = Groq(api_key=settings.ANTHROPIC_API_KEY)
 
 def cosine_similarity(text1: str, text2: str) -> float:
     words1 = set(text1.lower().split())
@@ -22,8 +21,6 @@ JOB DESCRIPTION:
 
 RESUME ({filename}):
 {resume}
-
-EMBEDDING SIMILARITY SCORE: {similarity:.2f} (0-1 scale)
 
 Return this exact JSON:
 {{
@@ -50,11 +47,13 @@ async def analyze_resume(resume_text: str, job_description: str, filename: str) 
         jd=job_description,
         resume=resume_text[:3000],
         filename=filename,
-        similarity=similarity,
         similarity_pct=similarity_pct
     )
-    response = model.generate_content(prompt)
-    raw = response.text.replace("```json", "").replace("```", "").strip()
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    raw = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
     result = json.loads(raw)
     result["fileName"] = filename
     result["embeddingScore"] = similarity_pct
