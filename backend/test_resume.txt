@@ -1,0 +1,15 @@
+John Doe
+john@email.com
+
+EXPERIENCE
+Senior Software Engineer - Google (2020-2024)
+- Built React applications
+- Node.js backend development
+- PostgreSQL database design
+- Docker and Kubernetes
+
+SKILLS
+React, Node.js, Python, PostgreSQL, Docker, AWS, TypeScript
+
+EDUCATION
+B.Sc Computer Science - MIT 2019
