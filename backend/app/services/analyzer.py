@@ -1,17 +1,29 @@
 import json
-import anthropic
+import math
+import google.generativeai as genai
 from app.core.config import settings
 
-client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+genai.configure(api_key=settings.ANTHROPIC_API_KEY)
+model = genai.GenerativeModel("gemini-2.0-flash-lite")
+
+def cosine_similarity(text1: str, text2: str) -> float:
+    words1 = set(text1.lower().split())
+    words2 = set(text2.lower().split())
+    if not words1 or not words2:
+        return 0.0
+    intersection = words1.intersection(words2)
+    return len(intersection) / math.sqrt(len(words1) * len(words2))
 
 PROMPT = """You are an expert HR analyst.
-Analyze this resume against the job description and return ONLY valid JSON, no markdown, no extra text.
+Analyze this resume against the job description and return ONLY valid JSON, no markdown.
 
 JOB DESCRIPTION:
 {jd}
 
 RESUME ({filename}):
 {resume}
+
+EMBEDDING SIMILARITY SCORE: {similarity:.2f} (0-1 scale)
 
 Return this exact JSON:
 {{
@@ -21,25 +33,31 @@ Return this exact JSON:
   "skillsScore": 80,
   "experienceScore": 75,
   "educationScore": 70,
+  "embeddingScore": {similarity_pct},
   "matchedSkills": ["React", "Python"],
   "missingSkills": ["Docker", "AWS"],
   "experience": "5 years at Company X",
   "education": "B.Sc Computer Science",
-  "strengths": ["Strong Python skills", "Good experience"],
-  "improvements": ["Missing cloud skills", "No leadership experience"],
-  "summary": "A strong candidate with good technical skills."
+  "strengths": ["Strong Python skills"],
+  "improvements": ["Missing cloud skills"],
+  "summary": "A strong candidate."
 }}"""
 
 async def analyze_resume(resume_text: str, job_description: str, filename: str) -> dict:
-    prompt = PROMPT.format(jd=job_description, resume=resume_text[:3000], filename=filename)
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}]
+    similarity = cosine_similarity(resume_text, job_description)
+    similarity_pct = round(similarity * 100)
+    prompt = PROMPT.format(
+        jd=job_description,
+        resume=resume_text[:3000],
+        filename=filename,
+        similarity=similarity,
+        similarity_pct=similarity_pct
     )
-    raw = message.content[0].text.replace("```json", "").replace("```", "").strip()
+    response = model.generate_content(prompt)
+    raw = response.text.replace("```json", "").replace("```", "").strip()
     result = json.loads(raw)
     result["fileName"] = filename
+    result["embeddingScore"] = similarity_pct
     return result
 
 async def analyze_multiple(resumes: list, job_description: str) -> list:
