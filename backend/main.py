@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.api.routes import auth, resumes
 
 app = FastAPI(title="AI Resume Analyzer", version="1.0.0")
@@ -13,6 +14,8 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(resumes.router, prefix="/api/resumes", tags=["resumes"])
+
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
 @app.get("/health")
 async def health():
